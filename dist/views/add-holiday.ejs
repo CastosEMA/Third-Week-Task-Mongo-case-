@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@10">
+    <title>Add Holiday Form</title>
+</head>
+
+<body>
+
+<h1>Add Holiday Form</h1>
+<form action="/add-holiday" method="POST">
+    <select id="employeeId" name="employeeId" required>
+        <% employeesJson.forEach(employee => { %>
+            <option value="<%= employee.id %>"><%= employee.name %></option>
+        <% }); %>
+    </select>
+
+    <br>
+
+    <label for="startDate">Start Date:</label>
+    <input type="date" id="startDate" name="startDate" placeholder="2024-04-01" required>
+
+    <br>
+
+    <label for="endDate">End Date:</label>
+    <input type="date" id="endDate" name="endDate" placeholder="2024-04-15" required>
+
+    <br>
+
+    <button type="submit">Submit</button>
+</form>
+<h2>Public Holidays List</h2>
+<ul>
+    <% holidays.forEach(holiday => { %>
+        <li><%= holiday.localName %> - <%= holiday.date %></li>
+    <% }); %>
+</ul>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
+<script>
+    window.onload = function() {
+        const failMessage = '<%= failMessage %>';
+        if (failMessage) {
+            Swal.fire({
+                icon: 'error',
+                title: failMessage,
+                showConfirmButton: false,
+                timer: 3000
+            });
+        }
+    };
+</script>
+</body>
+</html>
