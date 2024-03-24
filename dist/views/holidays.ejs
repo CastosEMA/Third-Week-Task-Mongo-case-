@@ -14,7 +14,7 @@
     <% requestsJson.forEach(request => { %>
         <li>
             <%= `${request.employeeId}: Start date ${request.startDate} to End date ${request.endDate} - ${request.status}` %>
-            <form action="/approve-reject-holiday" method="post">
+            <form action="/approve-reject-holiday" method="post" target="_self">
                 <input type="hidden" name="idOfEmployee" value="<%= request.employeeId %>">
                 <input type="hidden" name="requestId" value="<%= request.id %>">
                 <button type="submit" name="action" value="approve">Approve</button>

@@ -1,7 +1,6 @@
-import { Employee } from './employees.js';
+//import { Employee } from './employees.js';
 import { HolidayRequests, statusPending, statusApproved, statusRejected } from './holidayRequests.js';
 import { HolidayRules } from './holidayRules.js';
-import {failMessage, checkDates, getOneEmployee, getRequestsRows, getApprovedOrRejectedRequestsRows, getEmployeeRows, getRulesRows, deleteRequestById, updateRequest, getDatesOfOneRequest, getOneRequest, getEmployeeRemainingHolidays, approveRequest, rejectRequest, addOneRequest} from './database operations/database_operations.js'
 
 import { format,areIntervalsOverlapping , formatDistance, formatRelative, isValid, isWeekend, eachDayOfInterval, differenceInDays, subDays } from 'date-fns';
 import express, {Request, response, Response} from 'express';
@@ -10,40 +9,32 @@ import ejs from 'ejs';
 import axios, { AxiosResponse } from 'axios';
 import bodyParser  from 'body-parser';
 import { fileURLToPath } from 'url';
-import mysql from 'mysql2/promise';
-import {RowDataPacket} from 'mysql2/promise';
-
-
-
-import { MongoClient, Db } from 'mongodb';
 import { config } from 'dotenv'
+
+import {
+    failMessage,
+    deleteRequestByIdFromMango,
+    checkDatesFromMango,
+    getRulesRowsFromMango,
+    getEmployeeRowsFromMango,
+    getOneEmployeeFromMango,
+    getOneRequestInMango,
+    addOneRequestToMango,
+    getRequestsRowsFromMango,
+    getApprovedOrRejectedRequestsFromMango,
+    updateRequestInMongo,
+    approveRequestInMango,
+    rejectRequestInMango,
+    getDatesOfOneRequestInMongo,
+    getEmployeeRemainingHolidaysFromMango
+} from "./database_operations/mango_operations.js";
+
+import mongoose from 'mongoose';
 
 
 config()
 const dbUrl:string = process.env.MONG_DB_URL as string;
-
-// const client = new MongoClient(dbUrl);
-// async function get_smthng() {
-//     try {
-//         // Assuming 'client' is already defined and initialized elsewhere in your code
-//         await client.connect();
-//         console.log('Connected successfully to server');
-//
-//         const db = client.db("app");
-//         const collection = db.collection('documents');
-//         const document = { name: "John", age: 30, city: "New York" };
-//
-//         const result = await collection.insertOne(document);
-//         console.log('Found documents:', document);
-//
-//         // Don't forget to close the connection when you're done
-//         await client.close();
-//         console.log('Connection closed successfully');
-//     } catch (error) {
-//         console.error('Error:', error);
-//     }
-// }
-
+mongoose.connect(dbUrl);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -67,6 +58,7 @@ app.set('views', path.join(__dirname, 'views'));
 let successMessage:string;
 
 async function main(){
+    // console.log(await approveRequestInMango(1));
 
     interface Holiday {
         date: string;
@@ -110,7 +102,7 @@ async function main(){
             const requestId:number = Number(req.query.requestId);
             const result = req.query.result;
             if(result){
-                deleteRequestById(requestId);
+                deleteRequestByIdFromMango(requestId);
             }
             successMessage = "Holiday request deleted successfully!";
             res.redirect('/holidays');
@@ -122,7 +114,7 @@ async function main(){
     
     app.get('/employees', async (req, res) => {
         try {
-            const employeesJson = await getEmployeeRows();
+            const employeesJson = await getEmployeeRowsFromMango();
             res.render('employees', { employeesJson});
         } catch (e) {
             res.status(500).send('Internal Server Error');
@@ -132,8 +124,8 @@ async function main(){
     //in the 3rd task this endpoint was called /holidays, but in the 4rth it was renamed to /requests, but we decided to dont rename it
     app.get('/holidays', async (req, res) => {
         try {
-            const requestsJson: HolidayRequests[] = await getRequestsRows();
-            const approvedOrRejectedRequests: HolidayRequests[] = await getApprovedOrRejectedRequestsRows();
+            const requestsJson: HolidayRequests[] = await getRequestsRowsFromMango();
+            const approvedOrRejectedRequests: HolidayRequests[] = await getApprovedOrRejectedRequestsFromMango();
 
             relevantHolidays = [];
             const dates = requestsJson.map(request => {
@@ -167,21 +159,21 @@ async function main(){
                 const action = req.body.action;
                 const requestId = parseInt(req.body.requestId);
 
-                const request = await getOneRequest(requestId);
+                const request = await getOneRequestInMango(requestId);
 
-                const remainingHolidays: number  = await getEmployeeRemainingHolidays(idOfEmployee);
+                const remainingHolidays: number  = await getEmployeeRemainingHolidaysFromMango(idOfEmployee);
                 
-                const {startDate, endDate} = await getDatesOfOneRequest(requestId);
+                const {startDate, endDate} = await getDatesOfOneRequestInMongo(requestId);
                 const holidayLength = differenceInDays(endDate, startDate);
                 const leftHolidays = remainingHolidays - holidayLength;
 
                 if (request) {
                     if (action === 'approve') {
-                        await approveRequest(requestId, leftHolidays, idOfEmployee, startDate, endDate);
+                        await approveRequestInMango(requestId, leftHolidays, idOfEmployee, startDate, endDate);
                         successMessage = 'Holiday request approved successfully!'
                         res.redirect('/holidays');
                     } else if (action === 'reject') {
-                        await rejectRequest(requestId, idOfEmployee, startDate, endDate);
+                        await rejectRequestInMango(requestId, idOfEmployee, startDate, endDate);
                         successMessage = 'Holiday request rejected successfully!'
                         res.redirect('/holidays');
                     } else if (action === 'update') {
@@ -202,7 +194,7 @@ async function main(){
 
     app.get('/add-holiday', async (req, res) => {
         try {
-            const employeesJson = await getEmployeeRows();
+            const employeesJson = await getEmployeeRowsFromMango();
             res.render('add-holiday', {failMessage, holidays, employeesJson});
         } catch (error) {
             res.status(500).send(error);
@@ -215,8 +207,8 @@ async function main(){
         const startDate = req.body.startDate as string;
         const endDate = req.body.endDate as string;
 
-        if( await checkDates(employeeId, startDate, endDate)){
-            await addOneRequest(employeeId, startDate, endDate);
+        if( await checkDatesFromMango(employeeId, startDate, endDate)){
+            await addOneRequestToMango(employeeId, startDate, endDate);
             successMessage = "Holiday request created successfully!";
             res.redirect('/holidays');
         }else {
@@ -239,7 +231,7 @@ async function main(){
         const endDate:string = req.body.endDate;
         const id = Number(req.body.idOfRequest as string);
 
-        updateRequest(id,startDate,endDate);
+        updateRequestInMongo(id,startDate,endDate);
         res.redirect('/holidays');
     });
 

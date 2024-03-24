@@ -6,8 +6,16 @@
     "strict": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "moduleResolution": "node"
-
+    "moduleResolution": "node",
+    "paths": {
+      "mango_operations": ["./database_operations/mango_operations.ts"]
+    }
   },
-  "include": ["main.ts", "employees.ts", "holidayRequests.ts", "holidayRules.ts"]
+  "include": [
+    "main.ts",
+    "employees.ts",
+    "holidayRequests.ts",
+    "holidayRules.ts",
+    "./database operations/mango_operations.ts"
+  ]
 }
